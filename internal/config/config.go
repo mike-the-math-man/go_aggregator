@@ -38,3 +38,38 @@ func (Config) SetUser(c Config, user_name string) {
 	fmt.Println("File written successfully.")
 	//return nil
 }
+
+type state struct {
+	config *Config
+}
+
+type command struct {
+	name      string
+	arguments []string
+}
+
+func handlerLogin(s *state, cmd command) error {
+	if len(cmd.arguments) == 0 {
+		return fmt.Errorf("cmd slice empty")
+	}
+	s.config.Current_user_name = cmd.name
+	fmt.Println("user set")
+	return nil
+}
+
+type commands struct {
+	commands map[string]func(*state, command) error
+}
+
+func (c *commands) run(s *state, cmd command) error {
+	c.commands[cmd.name](s, cmd)
+	return nil
+}
+
+func (c *commands) register(name string, f func(*state, command) error) {
+	c.commands[name] = f
+}
+
+func Add_to_state(s *state, c *Config) {
+	s.config = c
+}
