@@ -1,28 +1,36 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
+	_ "github.com/lib/pq"
 	"github.com/mike-the-math-man/internal/config"
+	"github.com/mike-the-math-man/internal/database"
 )
 
 func main() {
 	updatedCfg := config.Read()
-	new_state := state{
-		&updatedCfg,
-	}
+
+	db, err := sql.Open("postgres", updatedCfg.Db_url)
+	dbQueries := database.New(db)
 	new_commands := commands{
 		map[string]func(*state, command) error{},
 	}
+	new_state := state{
+		dbQueries,
+		&updatedCfg,
+	}
 	new_commands.register("login", handlerLogin)
+	new_commands.register("register", handlerRegister)
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("not enough arguments")
 		os.Exit(1)
 	}
 
-	err := new_commands.run(&new_state, command{args[1], args[2:]})
+	err = new_commands.run(&new_state, command{args[1], args[2:]})
 	if err != nil {
 		fmt.Println("Error")
 		os.Exit(1)
