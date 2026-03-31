@@ -24,6 +24,9 @@ func main() {
 	}
 	new_commands.register("login", handlerLogin)
 	new_commands.register("register", handlerRegister)
+	new_commands.register("reset", handlerReset)
+	new_commands.register("users", handlerListUsers)
+	new_commands.register("agg", aggregator_list)
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("not enough arguments")
