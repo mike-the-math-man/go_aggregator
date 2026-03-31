@@ -1,3 +1,3 @@
 -- name: TruncateUsers :exec
 TRUNCATE
-	users;
+	users CASCADE;

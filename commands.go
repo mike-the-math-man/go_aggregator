@@ -85,7 +85,7 @@ func handlerRegister(s *state, cmd command) error {
 func handlerReset(s *state, cmd command) error {
 	err := s.db.TruncateUsers(context.Background())
 	if err != nil {
-		fmt.Println("error delteing users", err)
+		fmt.Println("error deleting users", err)
 		os.Exit(1)
 		return err
 	}
@@ -128,14 +128,14 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	}
 	read_result, err := io.ReadAll(result.Body)
 	if err != nil {
-		fmt.Println("error reading result from request")
+		fmt.Println("error reading result from request", err)
 		return nil, err
 	}
 	var feed RSSFeed
 
 	err = xml.Unmarshal(read_result, &feed)
 	if err != nil {
-		fmt.Println("error unmarshalling xml")
+		fmt.Println("error unmarshalling xml", err)
 		return nil, err
 	}
 	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
@@ -150,10 +150,50 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 func aggregator_list(s *state, cmd command) error {
 	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
 	if err != nil {
-		fmt.Println("error fetching feed")
+		fmt.Println("error fetching feed", err)
 		return err
 	}
 
 	fmt.Println(feed)
+	return nil
+}
+
+func add_feed(s *state, cmd command) error {
+	user, err := s.db.GetUser(context.Background(), s.config.Current_user_name)
+	if err != nil {
+		fmt.Println("error getting user", err)
+		return err
+	}
+	feed_id := uuid.New()
+	name := cmd.arguments[0]
+	url := cmd.arguments[1]
+	//_, err = s.db.GetFeed(context.Background(), name)
+	params := database.CreateFeedParams{ID: feed_id, CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: name, Url: url, UserID: user.ID}
+	//if err != nil {
+	feed, err := s.db.CreateFeed(context.Background(), params)
+	if err != nil {
+		fmt.Println("error creating feed", err)
+		return err
+	}
+	fmt.Println("feed added")
+	fmt.Printf("%+v\n", feed)
+	return nil
+	//} else {
+	//	os.Exit(1)
+	//	return err
+	//}
+}
+
+func get_feeds_list(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		fmt.Println("error sql feeds", err)
+		os.Exit(1)
+		return err
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("%+v\n", feed)
+	}
 	return nil
 }
