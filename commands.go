@@ -158,12 +158,8 @@ func aggregator_list(s *state, cmd command) error {
 	return nil
 }
 
-func add_feed(s *state, cmd command) error {
-	user, err := s.db.GetUser(context.Background(), s.config.Current_user_name)
-	if err != nil {
-		fmt.Println("error getting user", err)
-		return err
-	}
+func add_feed(s *state, cmd command, user database.User) error {
+
 	feed_id := uuid.New()
 	name := cmd.arguments[0]
 	url := cmd.arguments[1]
@@ -177,14 +173,18 @@ func add_feed(s *state, cmd command) error {
 	}
 	fmt.Println("feed added")
 	fmt.Printf("%+v\n", feed)
+	var new_command []string
+	new_command = append(new_command, cmd.arguments[1])
+	cmd.arguments = new_command
+	//fmt.Println(cmd)
+	err = follow_feed(s, cmd, user)
+	if err != nil {
+		fmt.Println("problem following feed", err)
+	}
 	return nil
-	//} else {
-	//	os.Exit(1)
-	//	return err
-	//}
 }
 
-func get_feeds_list(s *state, cmd command) error {
+func get_feeds_list(s *state, cmd command, user database.User) error {
 	feeds, err := s.db.GetFeeds(context.Background())
 	if err != nil {
 		fmt.Println("error sql feeds", err)
@@ -195,5 +195,60 @@ func get_feeds_list(s *state, cmd command) error {
 	for _, feed := range feeds {
 		fmt.Printf("%+v\n", feed)
 	}
+	return nil
+}
+
+func follow_feed(s *state, cmd command, user database.User) error {
+	follow_feed_id := uuid.New()
+	url := cmd.arguments[0]
+
+	feed, err := s.db.GetFeed(context.Background(), url)
+	if err != nil {
+		fmt.Println("feed not followed, please add feed before following", err)
+	}
+	params := database.CreateFeedFollowParams{ID: follow_feed_id, CreatedAt: time.Now(), UpdatedAt: time.Now(), UserID: user.ID, FeedID: feed.ID}
+	feed_follow, err := s.db.CreateFeedFollow(context.Background(), params)
+	if err != nil {
+		fmt.Println("error following feed", err)
+		return err
+	}
+	fmt.Printf("Feed: %s followed by user: %s\n", feed_follow.FeedName, feed_follow.UserName)
+	return nil
+}
+
+func follow_feeds_list(s *state, cmd command, user database.User) error {
+	feeds_list, err := s.db.GetFeedFollowsForUser(context.Background(), s.config.Current_user_name)
+	if err != nil {
+		fmt.Println("error sql get feed follows for user", err)
+		os.Exit(1)
+		return err
+	}
+
+	for _, feed := range feeds_list {
+		fmt.Printf("%s\n", feed.FeedName)
+	}
+	return nil
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, c command) error {
+		user, err := s.db.GetUser(context.Background(), s.config.Current_user_name)
+		if err != nil {
+			fmt.Println("error getting user", err)
+			return err
+		}
+		return handler(s, c, user)
+	}
+}
+
+func unfollowFeed(s *state, cmd command, user database.User) error {
+	url := cmd.arguments[0]
+
+	feed, err := s.db.GetFeed(context.Background(), url)
+	if err != nil {
+		fmt.Println("feed not followed, please add feed before following", err)
+	}
+	params := database.UnfollowFeedParams{UserID: user.ID, FeedID: feed.ID}
+	s.db.UnfollowFeed(context.Background(), params)
 	return nil
 }

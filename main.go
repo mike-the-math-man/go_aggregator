@@ -27,8 +27,11 @@ func main() {
 	new_commands.register("reset", handlerReset)
 	new_commands.register("users", handlerListUsers)
 	new_commands.register("agg", aggregator_list)
-	new_commands.register("addfeed", add_feed)
-	new_commands.register("feeds", get_feeds_list)
+	new_commands.register("addfeed", middlewareLoggedIn(add_feed))
+	new_commands.register("feeds", middlewareLoggedIn(get_feeds_list))
+	new_commands.register("follow", middlewareLoggedIn(follow_feed))
+	new_commands.register("following", middlewareLoggedIn(follow_feeds_list))
+	new_commands.register("unfollow", middlewareLoggedIn(unfollowFeed))
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("not enough arguments")
