@@ -32,6 +32,7 @@ func main() {
 	new_commands.register("follow", middlewareLoggedIn(follow_feed))
 	new_commands.register("following", middlewareLoggedIn(follow_feeds_list))
 	new_commands.register("unfollow", middlewareLoggedIn(unfollowFeed))
+	new_commands.register("browse", middlewareLoggedIn(browse))
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("not enough arguments")

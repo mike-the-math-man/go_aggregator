@@ -7,7 +7,9 @@ import (
 	"html"
 	"io"
 	"net/http"
-	"os"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -77,7 +79,6 @@ func handlerRegister(s *state, cmd command) error {
 		fmt.Println("User created")
 		return nil
 	} else {
-		os.Exit(1)
 		return err
 	}
 }
@@ -86,11 +87,9 @@ func handlerReset(s *state, cmd command) error {
 	err := s.db.TruncateUsers(context.Background())
 	if err != nil {
 		fmt.Println("error deleting users", err)
-		os.Exit(1)
 		return err
 	}
 	fmt.Println("Users Deleted")
-	os.Exit(0)
 	return nil
 }
 
@@ -98,7 +97,6 @@ func handlerListUsers(s *state, cmd command) error {
 	users, err := s.db.GetUsers(context.Background())
 	if err != nil {
 		fmt.Println("error sql users", err)
-		os.Exit(1)
 		return err
 	}
 	current_user := s.config.Current_user_name
@@ -148,18 +146,28 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 }
 
 func aggregator_list(s *state, cmd command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if len(cmd.arguments) == 0 {
+		fmt.Println("not enough arguments in aggregator_list")
+		return fmt.Errorf("Nooooo")
+	}
+	time_between_reqs, err := time.ParseDuration(cmd.arguments[0])
 	if err != nil {
-		fmt.Println("error fetching feed", err)
+		fmt.Println("error parsing time between requests", err)
 		return err
 	}
-
-	fmt.Println(feed)
+	fmt.Printf("Collecting feeds every %v\n", time_between_reqs)
+	ticker := time.NewTicker(time_between_reqs)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
 	return nil
 }
 
 func add_feed(s *state, cmd command, user database.User) error {
-
+	if len(cmd.arguments) <= 1 {
+		fmt.Println("not enough arguments in add_feed")
+		return fmt.Errorf("Nooooo")
+	}
 	feed_id := uuid.New()
 	name := cmd.arguments[0]
 	url := cmd.arguments[1]
@@ -188,7 +196,6 @@ func get_feeds_list(s *state, cmd command, user database.User) error {
 	feeds, err := s.db.GetFeeds(context.Background())
 	if err != nil {
 		fmt.Println("error sql feeds", err)
-		os.Exit(1)
 		return err
 	}
 
@@ -220,7 +227,6 @@ func follow_feeds_list(s *state, cmd command, user database.User) error {
 	feeds_list, err := s.db.GetFeedFollowsForUser(context.Background(), s.config.Current_user_name)
 	if err != nil {
 		fmt.Println("error sql get feed follows for user", err)
-		os.Exit(1)
 		return err
 	}
 
@@ -242,6 +248,10 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 }
 
 func unfollowFeed(s *state, cmd command, user database.User) error {
+	if len(cmd.arguments) == 0 {
+		fmt.Println("not enough arguments in unfollowFeed")
+		return fmt.Errorf("Nooooo")
+	}
 	url := cmd.arguments[0]
 
 	feed, err := s.db.GetFeed(context.Background(), url)
@@ -250,5 +260,71 @@ func unfollowFeed(s *state, cmd command, user database.User) error {
 	}
 	params := database.UnfollowFeedParams{UserID: user.ID, FeedID: feed.ID}
 	s.db.UnfollowFeed(context.Background(), params)
+	return nil
+}
+
+func scrapeFeeds(s *state) {
+	feed_row, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		fmt.Println("error getting next feed to follow", err)
+		return
+	}
+	err = s.db.MarkFeedFetched(context.Background(), feed_row.ID)
+	if err != nil {
+		fmt.Println("error marking feed fetched", err)
+		return
+	}
+	feed, err := fetchFeed(context.Background(), feed_row.Url)
+	if err != nil {
+		fmt.Println("error fetching feed", err)
+		return
+	}
+	for _, item := range feed.Channel.Item {
+		Pubdate, err := time.Parse(time.RFC1123, item.PubDate)
+		if err != nil {
+			fmt.Println("error parsing time", err)
+		}
+		params := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: item.Description,
+			PublishedAt: Pubdate,
+			FeedID:      feed_row.ID,
+		}
+		_, err = s.db.CreatePost(context.Background(), params)
+		if err != nil && !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			fmt.Println(err)
+		}
+	}
+}
+
+func browse(s *state, cmd command, user database.User) error {
+	limit := int32(2)
+	if len(cmd.arguments) != 0 {
+		i64, err := strconv.ParseInt(cmd.arguments[0], 10, 32)
+		if err != nil {
+			fmt.Println("error parsing input to int", err)
+			return err
+		}
+		limit = int32(i64)
+	}
+	params := database.GetPostsForUserParams{UserID: user.ID, Limit: limit}
+	posts, err := s.db.GetPostsForUser(context.Background(), params)
+	if err != nil {
+		fmt.Println("error getting posts for user")
+		return err
+	}
+	for _, post := range posts {
+		fmt.Printf("%s\n", post.Title)
+		fmt.Printf("Feed: %s\n", post.FeedName)
+		fmt.Printf("URL: %s\n", post.Url)
+		re := regexp.MustCompile("<[^>]*>")
+		clean := re.ReplaceAllString(post.Description, "")
+		fmt.Printf("Description: %s\n", clean)
+		fmt.Println()
+	}
 	return nil
 }
