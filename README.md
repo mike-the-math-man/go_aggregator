@@ -1,4 +1,4 @@
-# Gator - RSS Feed Aggregator CLI
+# go_aggregator - RSS Feed Aggregator CLI
 
 Gator is a command-line RSS feed aggregator built in Go. It allows users to register, follow RSS feeds, and browse the latest posts from their followed feeds. The application uses PostgreSQL as its database backend and provides a simple CLI interface for managing feeds and users.
 
@@ -17,9 +17,9 @@ Install the Gator CLI using Go's package manager:
 go install github.com/mike-the-math-man/go_aggregator@latest
 ```
 
-This will download, compile, and install the `gator` binary to your `$GOPATH/bin` directory. Make sure this directory is in your system's PATH.
+This will download, compile, and install the `go_aggregator` binary to your `$GOPATH/bin` directory. Make sure this directory is in your system's PATH.
 
-**Note**: Go programs are statically compiled binaries. After running `go install`, you can run the `gator` command directly without needing the Go toolchain. Use `go run .` only during development.
+**Note**: Go programs are statically compiled binaries. After running `go install`, you can run the `go_aggregator` command directly without needing the Go toolchain. Use `go run .` only during development.
 
 ## Setup
 
@@ -60,7 +60,7 @@ Gator stores its configuration in a JSON file at `~/.gatorconfig.json`. Create t
 After installation and setup, you can run Gator commands directly:
 
 ```bash
-gator <command> [arguments]
+go_aggregator <command> [arguments]
 ```
 
 ### Available Commands
@@ -69,59 +69,59 @@ Here are some key commands you can use:
 
 - **Register a new user**:
   ```bash
-  gator register <username>
+  go_aggregator register <username>
   ```
 
 - **Login as an existing user**:
   ```bash
-  gator login <username>
+  go_aggregator login <username>
   ```
 
 - **List all users**:
   ```bash
-  gator users
+  go_aggregator users
   ```
 
 - **Add a new RSS feed** (requires login):
   ```bash
-  gator addfeed <name> <url>
+  go_aggregator addfeed <name> <url>
   ```
 
 - **List all feeds**:
   ```bash
-  gator feeds
+  go_aggregator feeds
   ```
 
 - **Follow a feed** (requires login):
   ```bash
-  gator follow <url>
+  go_aggregator follow <url>
   ```
 
 - **List followed feeds** (requires login):
   ```bash
-  gator following
+  go_aggregator following
   ```
 
 - **Unfollow a feed** (requires login):
   ```bash
-  gator unfollow <url>
+  go_aggregator unfollow <url>
   ```
 
 - **Browse recent posts** (requires login):
   ```bash
-  gator browse [limit]
+  go_aggregator browse [limit]
   ```
   The optional `limit` parameter specifies how many posts to display (default: 2).
 
 - **Start the aggregator** (fetches new posts from feeds):
   ```bash
-  gator agg <time_between_requests>
+  go_aggregator agg <time_between_requests>
   ```
-  Example: `gator agg 30s` to fetch every 30 seconds.
+  Example: `go_aggregator agg 30s` to fetch every 30 seconds.
 
 - **Reset the database** (deletes all users):
   ```bash
-  gator reset
+  go_aggregator reset
   ```
 
 ### Development
@@ -135,10 +135,10 @@ go run .
 To build a local binary:
 
 ```bash
-go build -o gator .
+go build -o go_aggregator .
 ```
 
-Then run `./gator <command>`.
+Then run `./go_aggregator <command>`.
 
 ## Project Structure
 
